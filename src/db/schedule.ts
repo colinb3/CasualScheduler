@@ -6,6 +6,7 @@ type ScheduleIdRow = {
 
 type ShiftCandidateRow = {
   id: number;
+  date: string;
   startTime: string;
   endTime: string;
   lockedCasualId: number | null;
@@ -123,6 +124,7 @@ export async function generateScheduleForMonday(monday: string) {
     `
       SELECT
         Shift.id,
+        Shift.date,
         Shift.start_time AS startTime,
         Shift.end_time AS endTime,
         Shift.locked AS lockedCasualId
@@ -165,14 +167,47 @@ export async function generateScheduleForMonday(monday: string) {
   const unassignedShiftIds = new Set<number>(shifts.map((shift) => shift.id));
   const assignedCasualByShiftId = new Map<number, number>();
   const assignedMinutesByCasualId = new Map<number, number>();
+  const shiftDateById = new Map<number, string>(
+    shifts.map((shift) => [shift.id, shift.date]),
+  );
+  const assignedDatesByCasualId = new Map<number, Set<string>>();
+
+  const hasCasualAssignmentOnDate = (casualId: number, date: string) => {
+    const assignedDates = assignedDatesByCasualId.get(casualId);
+    return assignedDates ? assignedDates.has(date) : false;
+  };
+
+  const canAssignShiftToCasual = (shiftId: number, casualId: number) => {
+    if (!unassignedShiftIds.has(shiftId)) {
+      return false;
+    }
+
+    const shiftDate = shiftDateById.get(shiftId);
+
+    if (!shiftDate) {
+      return false;
+    }
+
+    return !hasCasualAssignmentOnDate(casualId, shiftDate);
+  };
 
   const assignShiftToCasual = (shiftId: number, casualId: number) => {
-    if (!unassignedShiftIds.has(shiftId)) {
+    if (!canAssignShiftToCasual(shiftId, casualId)) {
+      return false;
+    }
+
+    const shiftDate = shiftDateById.get(shiftId);
+
+    if (!shiftDate) {
       return false;
     }
 
     assignedCasualByShiftId.set(shiftId, casualId);
     unassignedShiftIds.delete(shiftId);
+
+    const assignedDates = assignedDatesByCasualId.get(casualId) || new Set<string>();
+    assignedDates.add(shiftDate);
+    assignedDatesByCasualId.set(casualId, assignedDates);
 
     const currentMinutes = assignedMinutesByCasualId.get(casualId) || 0;
     const shiftMinutes = shiftDurationMinutesById.get(shiftId) || 0;
@@ -190,7 +225,7 @@ export async function generateScheduleForMonday(monday: string) {
 
     let count = 0;
     for (const shiftId of availableShiftIds) {
-      if (unassignedShiftIds.has(shiftId)) {
+      if (canAssignShiftToCasual(shiftId, casualId)) {
         count += 1;
       }
     }
@@ -206,7 +241,7 @@ export async function generateScheduleForMonday(monday: string) {
     }
 
     return Array.from(availableShiftIds).filter((shiftId) =>
-      unassignedShiftIds.has(shiftId),
+      canAssignShiftToCasual(shiftId, casualId),
     );
   };
 
