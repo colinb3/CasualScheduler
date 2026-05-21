@@ -32,6 +32,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import HomeIcon from "@mui/icons-material/Home";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import { Link as RouterLink } from "react-router-dom";
 import { queryRows, runSql } from "../db/sqlite";
@@ -80,6 +81,14 @@ export default function Shifts({
     dayjs(),
   );
   const [shiftEndTime, setShiftEndTime] = React.useState<Dayjs | null>(dayjs());
+  const [editingShiftId, setEditingShiftId] = React.useState<number | null>(
+    null,
+  );
+  const [deleteShiftDialogOpen, setDeleteShiftDialogOpen] =
+    React.useState(false);
+  const [shiftToDelete, setShiftToDelete] = React.useState<ShiftRow | null>(
+    null,
+  );
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [shiftCount, setShiftCount] = React.useState<number | null>(null);
@@ -290,6 +299,7 @@ export default function Shifts({
   const handleOpenAddShiftSortBranch = (branchId: number) => {
     setSelectedBranchId(branchId);
     setSelectedWeekDay(null);
+    setEditingShiftId(null);
     setSaveError(null);
     setAddShiftDialogOpen(true);
   };
@@ -297,8 +307,24 @@ export default function Shifts({
   const handleOpenAddShiftSortDay = (day: Dayjs) => {
     setSelectedBranchId(null);
     setSelectedWeekDay(day);
+    setEditingShiftId(null);
     setSaveError(null);
     setAddShiftDialogOpen(true);
+  };
+
+  const handleOpenEditShift = (shift: ShiftRow) => {
+    setSelectedBranchId(shift.branch_id);
+    setSelectedWeekDay(dayjs(shift.date));
+    setShiftStartTime(dayjs(`2000-01-01T${shift.startTime}`));
+    setShiftEndTime(dayjs(`2000-01-01T${shift.endTime}`));
+    setEditingShiftId(shift.id);
+    setSaveError(null);
+    setAddShiftDialogOpen(true);
+  };
+
+  const handleOpenDeleteShift = (shift: ShiftRow) => {
+    setShiftToDelete(shift);
+    setDeleteShiftDialogOpen(true);
   };
 
   const getWeekStart = (date: Dayjs | null) => {
@@ -366,18 +392,36 @@ export default function Shifts({
       const shiftDateStr = selectedWeekDay.format("YYYY-MM-DD");
       const shiftStartStr = shiftStartTime.format("HH:mm");
       const shiftEndStr = shiftEndTime.format("HH:mm");
-      await runSql(
-        `
-          INSERT INTO Shift (date, start_time, end_time, branch_id)
-          VALUES (?, ?, ?, ?)
-        `,
-        [shiftDateStr, shiftStartStr, shiftEndStr, selectedBranchId],
-      );
+      if (editingShiftId !== null) {
+        await runSql(
+          `
+            UPDATE Shift
+            SET date = ?, start_time = ?, end_time = ?, branch_id = ?
+            WHERE id = ?
+          `,
+          [
+            shiftDateStr,
+            shiftStartStr,
+            shiftEndStr,
+            selectedBranchId,
+            editingShiftId,
+          ],
+        );
+      } else {
+        await runSql(
+          `
+            INSERT INTO Shift (date, start_time, end_time, branch_id)
+            VALUES (?, ?, ?, ?)
+          `,
+          [shiftDateStr, shiftStartStr, shiftEndStr, selectedBranchId],
+        );
+      }
 
       setAddShiftDialogOpen(false);
       setSelectedWeekDay(null);
+      setEditingShiftId(null);
 
-      refreshData();
+      void refreshData();
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : "Failed to add shift",
@@ -395,7 +439,7 @@ export default function Shifts({
         [rmId],
       );
 
-      refreshData();
+      void refreshData();
     } catch (error) {
       setErrorMsg(
         error instanceof Error ? error.message : "Failed to remove shift",
@@ -403,11 +447,24 @@ export default function Shifts({
     }
   };
 
+  const handleConfirmDeleteShift = async () => {
+    if (!shiftToDelete) {
+      return;
+    }
+
+    await handleRemoveShift(shiftToDelete.id);
+    setDeleteShiftDialogOpen(false);
+    setShiftToDelete(null);
+  };
+
   const handleCloseDialog = () => {
     setAddShiftDialogOpen(false);
     setSaveError(null);
     setSelectedWeekDay(null);
     setSelectedBranchId(null);
+    setEditingShiftId(null);
+    setShiftStartTime(dayjs());
+    setShiftEndTime(dayjs());
   };
 
   return (
@@ -539,17 +596,30 @@ export default function Shifts({
                               {" - "}
                               {formatShiftTime(shift.endTime)}
                             </Typography>
-                            <Tooltip title="Remove Shift">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  handleRemoveShift(shift.id);
-                                }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
+                            <Stack direction={"row"} spacing={0.25}>
+                              <Tooltip title="Edit Shift">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => {
+                                    handleOpenEditShift(shift);
+                                  }}
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Remove Shift">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    handleOpenDeleteShift(shift);
+                                  }}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
                           </Stack>
                         )}
                       </React.Fragment>
@@ -620,17 +690,30 @@ export default function Shifts({
                               {formatShiftTime(shift.startTime)} -{" "}
                               {formatShiftTime(shift.endTime)}
                             </Typography>
-                            <Tooltip title="Remove Shift">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  handleRemoveShift(shift.id);
-                                }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
+                            <Stack direction="row" spacing={0.25}>
+                              <Tooltip title="Edit Shift">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => {
+                                    handleOpenEditShift(shift);
+                                  }}
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Remove Shift">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    handleOpenDeleteShift(shift);
+                                  }}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
                           </Stack>
                         </React.Fragment>
                       ))}
@@ -643,10 +726,14 @@ export default function Shifts({
         )}
         <Dialog open={addShiftDialogOpen} onClose={handleCloseDialog}>
           <DialogTitle>
-            Add Shift to{" "}
-            {selectedBranchId
-              ? branches.find((b) => b.id === selectedBranchId)?.name
-              : ""}
+            {editingShiftId ? "Edit Shift" : "Add Shift"} to{" "}
+            {displayBy === "branch"
+              ? selectedBranchId
+                ? branches.find((b) => b.id === selectedBranchId)?.name
+                : ""
+              : selectedWeekDay
+                ? selectedWeekDay.format("ddd MMM D")
+                : ""}
           </DialogTitle>
           <DialogContent>
             <Box sx={{ py: 1 }}>
@@ -735,9 +822,48 @@ export default function Shifts({
                 void handleAddShift();
               }}
             >
-              {isSaving ? "Saving..." : "Add Shift"}
+              {isSaving
+                ? "Saving..."
+                : editingShiftId
+                  ? "Save Changes"
+                  : "Add Shift"}
             </Button>
             <Button onClick={handleCloseDialog} disabled={isSaving}>
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={deleteShiftDialogOpen}
+          onClose={() => {
+            setDeleteShiftDialogOpen(false);
+            setShiftToDelete(null);
+          }}
+        >
+          <DialogTitle>Delete Shift?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete{" "}
+              {shiftToDelete
+                ? `${branches.find((b) => b.id === shiftToDelete.branch_id)?.name ?? "Branch"} on ${dayjs(shiftToDelete.date).format("ddd MMM D")} from ${formatShiftTime(shiftToDelete.startTime)} to ${formatShiftTime(shiftToDelete.endTime)}`
+                : "this shift"}
+              ?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={() => void handleConfirmDeleteShift()}
+            >
+              Delete
+            </Button>
+            <Button
+              onClick={() => {
+                setDeleteShiftDialogOpen(false);
+                setShiftToDelete(null);
+              }}
+            >
               Cancel
             </Button>
           </DialogActions>

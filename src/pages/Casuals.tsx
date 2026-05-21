@@ -49,6 +49,11 @@ export default function Casuals({
   const [editCasualDialogOpen, setEditCasualDialogOpen] =
     React.useState<boolean>(false);
   const [editCasualId, setEditCasualId] = React.useState<number | null>(null);
+  const [deleteCasualDialogOpen, setDeleteCasualDialogOpen] =
+    React.useState(false);
+  const [casualToDelete, setCasualToDelete] = React.useState<CasualRow | null>(
+    null,
+  );
 
   React.useEffect(() => {
     let isActive = true;
@@ -177,12 +182,27 @@ export default function Casuals({
         [rmId],
       );
 
-      refreshData();
+      void refreshData();
     } catch (error) {
       setErrorMsg(
         error instanceof Error ? error.message : "Failed to remove casual",
       );
     }
+  };
+
+  const handleOpenDeleteCasual = (casual: CasualRow) => {
+    setCasualToDelete(casual);
+    setDeleteCasualDialogOpen(true);
+  };
+
+  const handleConfirmDeleteCasual = async () => {
+    if (!casualToDelete) {
+      return;
+    }
+
+    await handleRemoveCasual(casualToDelete.id);
+    setDeleteCasualDialogOpen(false);
+    setCasualToDelete(null);
   };
 
   const handleOpenEditCasual = (id: number, name: string) => {
@@ -311,7 +331,7 @@ export default function Casuals({
                           size="small"
                           color="error"
                           onClick={() => {
-                            handleRemoveCasual(casual.id);
+                            handleOpenDeleteCasual(casual);
                           }}
                         >
                           <DeleteIcon />
@@ -393,6 +413,37 @@ export default function Casuals({
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
             <Button onClick={handleCloseEditDialog} disabled={isSaving}>
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={deleteCasualDialogOpen}
+          onClose={() => {
+            setDeleteCasualDialogOpen(false);
+            setCasualToDelete(null);
+          }}
+        >
+          <DialogTitle>Delete Casual?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete {casualToDelete ? casualToDelete.name : "this casual"}?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={() => void handleConfirmDeleteCasual()}
+            >
+              Delete
+            </Button>
+            <Button
+              onClick={() => {
+                setDeleteCasualDialogOpen(false);
+                setCasualToDelete(null);
+              }}
+            >
               Cancel
             </Button>
           </DialogActions>

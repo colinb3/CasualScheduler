@@ -820,7 +820,7 @@ export default function Availability({
         {displayBy === "casual" ? (
           <Grid container spacing={2}>
             {casuals.map((casual) => (
-              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={casual.id}>
+              <Grid size={{ xs: 12, md: 6, lg: 4, xl: 3 }} key={casual.id}>
                 <Box
                   sx={{
                     border: "solid",
