@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Shifts from "./pages/Shifts";
 import Casuals from "./pages/Casuals";
 import Availability from "./pages/Availability";
+import Schedule from "./pages/Schedule";
 import { getDatabase } from "./db/sqlite";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -45,6 +46,10 @@ export default function AppRouter() {
         <Route
           path="/availability"
           element={<Availability selectedWeekStart={selectedWeekStart} />}
+        />
+        <Route
+          path="/schedule"
+          element={<Schedule selectedWeekStart={selectedWeekStart} />}
         />
       </Routes>
     </BrowserRouter>

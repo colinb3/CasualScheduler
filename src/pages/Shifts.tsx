@@ -105,7 +105,7 @@ export default function Shifts({
         );
         setShiftCount(shiftCountRows[0].shiftCount);
       } catch (error) {
-        console.error("Error refreshing data:", error);
+        console.error("Error loading shift counts:", error);
       }
     }
 
@@ -480,12 +480,12 @@ export default function Shifts({
         {displayBy === "branch" ? (
           <Grid container spacing={2}>
             {branches.map((branch) => (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={branch.id}>
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={branch.id}>
                 <Box
                   sx={{
                     border: "solid",
                     borderWidth: "1px",
-                    borderColor: "primary.secondary",
+                    borderColor: "divider",
                     borderRadius: "3px",
                     padding: "10px",
                   }}
@@ -520,9 +520,7 @@ export default function Shifts({
                     </Box>
                   </Stack>
                   {branchCounts.find((bc) => bc.id === branch.id)
-                    ?.shiftCount && (
-                    <Divider sx={{ mt: 1.5, mb: 0.5, color: "b" }} />
-                  )}
+                    ?.shiftCount && <Divider sx={{ mt: 1.5, mb: 0.5 }} />}
                   <Box>
                     {shifts.map((shift) => (
                       <React.Fragment key={shift.id}>
@@ -534,7 +532,7 @@ export default function Shifts({
                               alignItems: "center",
                             }}
                           >
-                            <Typography variant="body2">
+                            <Typography>
                               {dayjs(shift.date).format("ddd MMM D")}
                               {": "}
                               {formatShiftTime(shift.startTime)}
@@ -567,12 +565,12 @@ export default function Shifts({
               const dateKey = day.format("YYYY-MM-DD");
               const shiftsForDate = shifts.filter((s) => s.date === dateKey);
               return (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={dateKey}>
+                <Grid size={{ xs: 12, md: 6, lg: 4 }} key={dateKey}>
                   <Box
                     sx={{
                       border: "solid",
                       borderWidth: "1px",
-                      borderColor: "primary.secondary",
+                      borderColor: "divider",
                       borderRadius: "3px",
                       padding: "10px",
                     }}
@@ -615,12 +613,12 @@ export default function Shifts({
                               mt: 1,
                             }}
                           >
-                            <Typography variant="body2">
-                              {formatShiftTime(shift.startTime)} -{" "}
-                              {formatShiftTime(shift.endTime)} (
+                            <Typography>
                               {branches.find((b) => b.id === shift.branch_id)
                                 ?.name || "Branch"}
-                              )
+                              {": "}
+                              {formatShiftTime(shift.startTime)} -{" "}
+                              {formatShiftTime(shift.endTime)}
                             </Typography>
                             <Tooltip title="Remove Shift">
                               <IconButton

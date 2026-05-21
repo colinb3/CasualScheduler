@@ -22,6 +22,7 @@ import {
 import HomeIcon from "@mui/icons-material/Home";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import { Link as RouterLink } from "react-router-dom";
 import { queryRows, runSql } from "../db/sqlite";
 import type { Dayjs } from "dayjs";
@@ -42,7 +43,12 @@ export default function Casuals({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [newCasualName, setNewCasualName] = React.useState<string | null>(null);
+  const [newEditCasualName, setNewEditCasualName] = React.useState<
+    string | null
+  >(null);
+  const [editCasualDialogOpen, setEditCasualDialogOpen] =
+    React.useState<boolean>(false);
+  const [editCasualId, setEditCasualId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     let isActive = true;
@@ -99,9 +105,42 @@ export default function Casuals({
     setAddCasualDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
+  const handleCloseAddDialog = () => {
     setAddCasualDialogOpen(false);
     setSaveError(null);
+    setNewEditCasualName(null);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditCasualDialogOpen(false);
+    setSaveError(null);
+    setNewEditCasualName(null);
+  };
+
+  const handleEditCasual = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      await runSql(
+        `
+            UPDATE Casual
+            SET name = ?
+            WHERE id = ?
+          `,
+        [newEditCasualName, editCasualId],
+      );
+
+      setEditCasualDialogOpen(false);
+
+      refreshData();
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to edit casual",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddCasual = async () => {
@@ -114,15 +153,16 @@ export default function Casuals({
             INSERT INTO Casual (name)
             VALUES (?)
           `,
-        [newCasualName],
+        [newEditCasualName],
       );
 
       setAddCasualDialogOpen(false);
+      setNewEditCasualName(null);
 
       refreshData();
     } catch (error) {
       setSaveError(
-        error instanceof Error ? error.message : "Failed to add shift",
+        error instanceof Error ? error.message : "Failed to add casual",
       );
     } finally {
       setIsSaving(false);
@@ -140,9 +180,16 @@ export default function Casuals({
       refreshData();
     } catch (error) {
       setErrorMsg(
-        error instanceof Error ? error.message : "Failed to remove shift",
+        error instanceof Error ? error.message : "Failed to remove casual",
       );
     }
+  };
+
+  const handleOpenEditCasual = (id: number, name: string) => {
+    setEditCasualId(id);
+    setNewEditCasualName(name);
+    setSaveError(null);
+    setEditCasualDialogOpen(true);
   };
 
   const getWeekStart = (date: Dayjs | null) => {
@@ -212,7 +259,7 @@ export default function Casuals({
                   sx={{
                     border: "solid",
                     borderWidth: "1px",
-                    borderColor: "primary.secondary",
+                    borderColor: "divider",
                     borderRadius: "3px",
                     padding: "10px",
                   }}
@@ -247,17 +294,30 @@ export default function Casuals({
                         {casual.name}
                       </Typography>
                     </Stack>
-                    <Tooltip title="Remove Casual">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => {
-                          handleRemoveCasual(casual.id);
-                        }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <Stack direction={"row"} spacing={0.25}>
+                      <Tooltip title="Edit Casual">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => {
+                            handleOpenEditCasual(casual.id, casual.name);
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Remove Casual">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            handleRemoveCasual(casual.id);
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </Stack>
                 </Box>
               </Grid>
@@ -265,7 +325,7 @@ export default function Casuals({
           </Grid>
         )}
 
-        <Dialog open={addCasualDialogOpen} onClose={handleCloseDialog}>
+        <Dialog open={addCasualDialogOpen} onClose={handleCloseAddDialog}>
           <DialogTitle>Add Casual</DialogTitle>
           <DialogContent>
             <Box sx={{ py: 1 }}>
@@ -274,8 +334,8 @@ export default function Casuals({
                   label="Casual Name"
                   variant="outlined"
                   sx={{ mt: 2 }}
-                  value={newCasualName || ""}
-                  onChange={(e) => setNewCasualName(e.target.value)}
+                  value={newEditCasualName || ""}
+                  onChange={(e) => setNewEditCasualName(e.target.value)}
                 />
 
                 {saveError && (
@@ -296,7 +356,43 @@ export default function Casuals({
             >
               {isSaving ? "Saving..." : "Add Shift"}
             </Button>
-            <Button onClick={handleCloseDialog} disabled={isSaving}>
+            <Button onClick={handleCloseAddDialog} disabled={isSaving}>
+              Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog open={editCasualDialogOpen} onClose={handleCloseEditDialog}>
+          <DialogTitle>Edit Casual</DialogTitle>
+          <DialogContent>
+            <Box sx={{ py: 1 }}>
+              <Stack direction={"column"} spacing={2}>
+                <TextField
+                  label="Casual Name"
+                  variant="outlined"
+                  sx={{ mt: 2 }}
+                  value={newEditCasualName || ""}
+                  onChange={(e) => setNewEditCasualName(e.target.value)}
+                />
+
+                {saveError && (
+                  <Typography color="error" variant="body2">
+                    {saveError}
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="contained"
+              disabled={isSaving}
+              onClick={() => {
+                void handleEditCasual();
+              }}
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button onClick={handleCloseEditDialog} disabled={isSaving}>
               Cancel
             </Button>
           </DialogActions>

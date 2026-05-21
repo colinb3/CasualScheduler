@@ -14,7 +14,9 @@ CREATE TABLE Shift (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     branch_id INTEGER NOT NULL,
+    locked INTEGER NULL,
     FOREIGN KEY (branch_id) REFERENCES Branch(id)
+    FOREIGN KEY (locked) REFERENCES Casual(id) ON DELETE SET NULL
 );
 
 CREATE TABLE Available (
@@ -23,6 +25,21 @@ CREATE TABLE Available (
     shift_id INTEGER NOT NULL,
     FOREIGN KEY (casual_id) REFERENCES Casual(id) ON DELETE CASCADE,
     FOREIGN KEY (shift_id) REFERENCES Shift(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monday DATE NOT NULL UNIQUE
+);
+
+CREATE TABLE ScheduleShift (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_id INTEGER NOT NULL,
+    shift_id INTEGER NOT NULL,
+    casual_id INTEGER,
+    FOREIGN KEY (schedule_id) REFERENCES Schedule(id) ON DELETE CASCADE,
+    FOREIGN KEY (shift_id) REFERENCES Shift(id) ON DELETE CASCADE,
+    FOREIGN KEY (casual_id) REFERENCES Casual(id) ON DELETE SET NULL
 );
 
 INSERT INTO Branch (name) VALUES 

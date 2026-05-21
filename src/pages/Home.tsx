@@ -74,6 +74,9 @@ export default function Home({
         <Button variant="contained" component={RouterLink} to="/availability">
           Add Availability
         </Button>
+        <Button variant="contained" component={RouterLink} to="/schedule">
+          View Schedule
+        </Button>
       </Stack>
       <Typography variant="body1">
         Welcome to the LPL Casual Scheduler! Use the buttons above to add
